@@ -14,6 +14,7 @@ namespace AdvancedDB
         private string connectionString; // Veritabanı bağlantı dizesi
         private int transactionsCount; // İşlem sayısı
         private IsolationLevel isolationLevel; // İzolasyon seviyesi
+        
 
         public TypeAUser(string connectionString, int transactionsCount, IsolationLevel isolationLevel)
         {
@@ -27,6 +28,7 @@ namespace AdvancedDB
             for (int i = 0; i < transactionsCount; i++)
             {
                 SqlConnection connection = new SqlConnection(connectionString);
+                SqlTransaction transaction = null;
                 try
                 {
                     connection.Open();
@@ -77,10 +79,13 @@ namespace AdvancedDB
                     else
                     {
                         Console.WriteLine("Error: " + ex.Message);
-                        // ROLLBACK TRANSACTION if an error occurs
-                       
-      
-                     }
+                        // Rollback the transaction in case of any error(İşlem sırasında bir hata oluşursa işlemi geri al)
+                        if (transaction != null)
+                            transaction.Rollback();
+
+
+
+                    }
                 }
                 finally
                 {

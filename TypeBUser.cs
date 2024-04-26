@@ -28,6 +28,7 @@ namespace AdvancedDB
             for (int i = 0; i < transactionsCount; i++)
             {
                 SqlConnection connection = new SqlConnection(connectionString);
+                SqlTransaction transaction = null;
                 try
                 {
                     connection.Open();
@@ -79,6 +80,9 @@ namespace AdvancedDB
                     else
                     {
                         Console.WriteLine("Error: " + ex.Message);
+                        if (transaction != null)
+                            transaction.Rollback();
+
                     }
                 }
                 finally

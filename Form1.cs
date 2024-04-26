@@ -35,7 +35,7 @@ namespace AdvancedDB
         }
 
 
-        private async Task StartSimulation()
+        private async Task StartSimulation(int typeAUsersCount, int typeBUsersCount)
         {
             List<Task> tasks = new List<Task>();
 
@@ -62,9 +62,40 @@ namespace AdvancedDB
         }
 
 
-        private void button1_Click(object sender, EventArgs e)
+        private async void btnStartSimulation_Click(object sender, EventArgs e)
         {
-            StartSimulation();
+            int typeAUsersCount = (int)numTypeAUsersCount.Value;
+            int typeBUsersCount = (int)numericUpDown2.Value;
+
+            await StartSimulation(typeAUsersCount, typeBUsersCount);
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // Label kontrolüne isimleri atama
+            labelTypeAUsersCount.Text = "Type A Users: " + typeAUsersCount.ToString();
+            labelTypeBUsersCount.Text = "Type B Users: " + typeBUsersCount.ToString();
+
+        }
+
+        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void numericUpDown2_ValueChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void labelNumTypeA_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void labelNumTypeB_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }
