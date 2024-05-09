@@ -37,55 +37,91 @@ namespace AdvancedDB
 
         private async Task StartSimulation(int typeAUsersCount, int typeBUsersCount)
         {
-            List<Task> tasks = new List<Task>();
+            
 
-            // Tip A kullanıcıları oluştur ve işlemleri başlat
-            typeAUsers = new TypeAUser[typeAUsersCount];
-            for (int i = 0; i < typeAUsersCount; i++)
+            try
             {
-                typeAUsers[i] = new TypeAUser(connectionString, transactionsCount, isolationLevel);
-                Task task = Task.Run(() => typeAUsers[i-1].RunTransactions());
-                tasks.Add(task);
-            }
+                progressBar1.Maximum = typeAUsersCount + typeBUsersCount;
+                progressBar1.Value = 0;
 
-            // Tip B kullanıcıları oluştur ve işlemleri başlat
-            typeBUsers = new TypeBUser[typeBUsersCount];
-            for (int i = 0; i < typeBUsersCount; i++)
+                List<Task> tasks = new List<Task>();
+
+                // Tip A kullanıcıları oluştur ve işlemleri başlat
+                typeAUsers = new TypeAUser[typeAUsersCount];
+                for (int i = 0; i < typeAUsersCount; i++)
+                {
+                    typeAUsers[i] = new TypeAUser(connectionString, transactionsCount, isolationLevel);
+                    Task task = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await typeAUsers[i].RunTransactionsAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            // Hata durumunda yapılacak işlemler
+                            Console.WriteLine($"Hata oluştu: {ex.Message}");
+                            // İsterseniz burada hata ile ilgili kullanıcı arayüzünde bir mesaj gösterebilirsiniz
+                        }
+                    });
+                    tasks.Add(task);
+                    progressBar1.Value++;
+                }
+
+                // Tip B kullanıcıları oluştur ve işlemleri başlat
+                TypeBUser[] typeBUsers = new TypeBUser[typeBUsersCount];
+
+                for (int i = 0; i < typeBUsersCount; i++)
+                {
+                    typeBUsers[i] = new TypeBUser(connectionString, transactionsCount, isolationLevel);
+                    Task task = Task.Run(() => typeBUsers[i].RunTransactionsAsync());
+                    tasks.Add(task);
+                    progressBar1.Value++;
+                }
+
+                // Tüm görevlerin tamamlanmasını bekleyin
+                await Task.WhenAll(tasks);
+            }
+            catch (Exception ex)
             {
-                typeBUsers[i] = new TypeBUser(connectionString, transactionsCount, isolationLevel);
-                Task task = Task.Run(() => typeBUsers[i-1].RunTransactions());
-                tasks.Add(task);
+                MessageBox.Show("An error occurred: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-
-            // Tüm görevlerin tamamlanmasını bekleyin
-            await Task.WhenAll(tasks);
         }
 
+        private async void Form1_Load(object sender, EventArgs e)
+         {
+             // Form yüklendiğinde simülasyonu başlat
+             await StartSimulation(typeAUsersCount, typeBUsersCount);
+             // Label kontrolüne isimleri atama
+             labelTypeAUsersCount.Text = "Type A Users: " + typeAUsersCount.ToString();
+             labelTypeBUsersCount.Text = "Type B Users: " + typeBUsersCount.ToString();
+         }
+        
 
         private async void btnStartSimulation_Click(object sender, EventArgs e)
         {
-            int typeAUsersCount = (int)numTypeAUsersCount.Value;
-            int typeBUsersCount = (int)numericUpDown2.Value;
+            try
+            {
+                int typeAUsersCount = (int)numTypeAUsersCount.Value;
+                int typeBUsersCount = (int)numericUpDown2.Value;
 
-            await StartSimulation(typeAUsersCount, typeBUsersCount);
+                await StartSimulation(typeAUsersCount, typeBUsersCount);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("An error occurred: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
-        private void Form1_Load(object sender, EventArgs e)
-        {
-            // Label kontrolüne isimleri atama
-            labelTypeAUsersCount.Text = "Type A Users: " + typeAUsersCount.ToString();
-            labelTypeBUsersCount.Text = "Type B Users: " + typeBUsersCount.ToString();
-
-        }
 
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
         {
-
+            typeAUsersCount = (int)numTypeAUsersCount.Value;
         }
 
         private void numericUpDown2_ValueChanged(object sender, EventArgs e)
         {
-
+            typeBUsersCount = (int)numericUpDown2.Value;
         }
 
         private void labelNumTypeA_Click(object sender, EventArgs e)
@@ -94,6 +130,11 @@ namespace AdvancedDB
         }
 
         private void labelNumTypeB_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void progressBar1_Click(object sender, EventArgs e)
         {
 
         }

@@ -1,20 +1,17 @@
 ﻿using System;
 using System.Data;
 using System.Data.SqlClient;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace AdvancedDB
 {
-
-    public class TypeBUser
+    public class TypeBUser : IUser
     {
-        private string connectionString; // Veritabanı bağlantı dizesi
-        private int transactionsCount; // İşlem sayısı
-        private IsolationLevel isolationLevel; // İzolasyon seviyesi
+        private string connectionString;
+        private int transactionsCount;
+        private IsolationLevel isolationLevel;
+
+        public TypeBUser() { }
 
         public TypeBUser(string connectionString, int transactionsCount, IsolationLevel isolationLevel)
         {
@@ -23,91 +20,78 @@ namespace AdvancedDB
             this.isolationLevel = isolationLevel;
         }
 
-        public void RunTransactions()
+        public string ConnectionString { get => connectionString; set => connectionString = value; }
+        public IsolationLevel IsolationLevel { get => isolationLevel; set => isolationLevel = value; }
+
+        // IUser arabirimini uygulamak için RunTransactionsAsync metodu eklenmeli
+        public async Task RunTransactionsAsync()
         {
-            for (int i = 0; i < transactionsCount; i++)
+            using (SqlConnection connection = new SqlConnection(connectionString))
             {
-                SqlConnection connection = new SqlConnection(connectionString);
-                SqlTransaction transaction = null;
-                try
+                Random random = new Random();
+
+                for (int i = 0; i < transactionsCount; i++)
                 {
-                    connection.Open();
+                    SqlTransaction transaction = null;
 
-                    using (SqlCommand command = connection.CreateCommand())
+                    try
                     {
-                        command.CommandText = "SET TRANSACTION ISOLATION LEVEL " + IsolationLevelToString(isolationLevel);
-                        command.ExecuteNonQuery();
+                        connection.Open();
 
-                        command.CommandText = "BEGIN TRANSACTION";
-                        command.ExecuteNonQuery();
-
-                        // Rastgele tarihler oluştur
-                        Random random = new Random();
-                        DateTime beginDate = new DateTime(2011, 1, 1).AddDays(random.Next(3650));
-                        DateTime endDate = beginDate.AddYears(1);
-
-                        // Seçim sorgusu
-                        string selectQuery = "SELECT SUM(Sales.SalesOrderDetail.OrderQty) " +
-                                             "FROM Sales.SalesOrderDetail " +
-                                             "WHERE UnitPrice > 100 " +
-                                             "AND EXISTS (SELECT * FROM Sales.SalesOrderHeader " +
-                                                         "WHERE Sales.SalesOrderHeader.SalesOrderID = Sales.SalesOrderDetail.SalesOrderID " +
-                                                         "AND Sales.SalesOrderHeader.OrderDate BETWEEN @BeginDate AND @EndDate " +
-                                                         "AND Sales.SalesOrderHeader.OnlineOrderFlag = 1)";
-
-                        command.CommandText = selectQuery;
-                        command.Parameters.AddWithValue("@BeginDate", beginDate);
-                        command.Parameters.AddWithValue("@EndDate", endDate);
-
-                        // 50% olasılıkla sorguyu çalıştır
-                        if (random.NextDouble() < 0.5)
+                        transaction = connection.BeginTransaction(isolationLevel);
                         {
-                            object result = command.ExecuteScalar();
-                            Console.WriteLine("Result: " + result);
+                            using (SqlCommand command = connection.CreateCommand())
+                            {
+                                command.Transaction = transaction;
+
+                                // Rastgele tarihler oluştur
+                                DateTime beginDate = new DateTime(2011, 1, 1).AddDays(random.Next(3650));
+                                DateTime endDate = beginDate.AddYears(1);
+
+                                // Seçim sorgusu
+                                string selectQuery = "SELECT SUM(Sales.SalesOrderDetail.OrderQty) " +
+                                                     "FROM Sales.SalesOrderDetail " +
+                                                     "WHERE UnitPrice > 100 " +
+                                                     "AND EXISTS (SELECT * FROM Sales.SalesOrderHeader " +
+                                                                 "WHERE Sales.SalesOrderHeader.SalesOrderID = Sales.SalesOrderDetail.SalesOrderID " +
+                                                                 "AND Sales.SalesOrderHeader.OrderDate BETWEEN @BeginDate AND @EndDate " +
+                                                                 "AND Sales.SalesOrderHeader.OnlineOrderFlag = 1)";
+
+                                command.CommandText = selectQuery;
+                                command.Parameters.AddWithValue("@BeginDate", beginDate);
+                                command.Parameters.AddWithValue("@EndDate", endDate);
+
+                                // 50% olasılıkla sorguyu çalıştır
+                                if (random.NextDouble() < 0.5)
+                                {
+                                    object result = command.ExecuteScalar();
+                                    Console.WriteLine("Result: " + result);
+                                }
+
+                                transaction.Commit();
+                            }
                         }
-
-                        command.CommandText = "COMMIT TRANSACTION";
-                        command.ExecuteNonQuery();
                     }
-                }
-                catch (SqlException ex)
-                {
-                    // Deadlock durumunda devam et
-                    if (ex.Number == 1205)
+                    catch (SqlException ex)
                     {
-                        Console.WriteLine("Deadlock occurred. Continuing...");
-                    }
-                    else
-                    {
-                        Console.WriteLine("Error: " + ex.Message);
-                        if (transaction != null)
+                        // Deadlock durumunda devam et
+                        if (ex.Number == 1205)
+                        {
+                            Console.WriteLine("Deadlock occurred. Continuing...");
+                        }
+                        else
+                        {
+                            Console.WriteLine("Error: " + ex.Message);
+                            // Rollback the transaction in case of any error
                             transaction.Rollback();
-
+                        }
+                    }
+                    finally
+                    {
+                        connection.Close();
                     }
                 }
-                finally
-                {
-                    connection.Close();
-                }
-            }
-        }
-
-        private string IsolationLevelToString(IsolationLevel isolationLevel)
-        {
-            switch (isolationLevel)
-            {
-                case IsolationLevel.ReadUncommitted:
-                    return "READ UNCOMMITTED";
-                case IsolationLevel.ReadCommitted:
-                    return "READ COMMITTED";
-                case IsolationLevel.RepeatableRead:
-                    return "REPEATABLE READ";
-                case IsolationLevel.Serializable:
-                    return "SERIALIZABLE";
-                default:
-                    throw new ArgumentException("Invalid isolation level.");
             }
         }
     }
-
 }
